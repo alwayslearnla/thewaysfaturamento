@@ -193,6 +193,31 @@ dialog::backdrop{background:rgba(20,40,50,.45)}
   .report-title{font:600 20px var(--serif);margin-bottom:2px}
 }
 </style>
+<script>
+(function(){
+  var errs=[];
+  window.addEventListener('error',function(e){errs.push((e.message||'erro')+(e.lineno?' (linha '+e.lineno+')':''))});
+  window.addEventListener('load',function(){
+    if(window.__twOK)return;
+    var app=document.getElementById('app');
+    if(!app){app=document.createElement('main');app.id='app';document.body.appendChild(app)}
+    var esc=function(s){return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})};
+    var why=!window.__twEnd?'O arquivo index.html parece incompleto (o envio ao GitHub pode ter sido cortado). Envie o arquivo de novo.':(typeof XLSX==='undefined'?'A biblioteca de planilhas não carregou.':'Ocorreu um erro ao iniciar o painel.');
+    app.innerHTML='<section class="panel"><h3>O painel não conseguiu iniciar</h3><p class="sub">'+why+' Seus dados salvos não foram apagados.</p>'+(errs.length?'<p class="sub"><b>Detalhe técnico:</b> '+esc(errs.slice(0,3).join(' | '))+'</p>':'')+'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="twReload">Recarregar</button><button class="btn secondary" id="twClear">Limpar a cópia do app e recarregar</button><button class="btn secondary" id="twDump">Baixar cópia dos dados salvos</button></div></section>';
+    document.getElementById('twReload').onclick=function(){location.reload()};
+    document.getElementById('twClear').onclick=function(){
+      var jobs=[];
+      if(window.caches)jobs.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}));
+      if(navigator.serviceWorker)jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}));
+      Promise.all(jobs).catch(function(){}).then(function(){location.reload()});
+    };
+    document.getElementById('twDump').onclick=function(){
+      var d='{}';try{d=localStorage.getItem('theways_recebimentos_v1')||'{}'}catch(e){}
+      var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([d],{type:'application/json'}));a.download='dados_theways_recebimentos.json';document.body.appendChild(a);a.click();a.remove();
+    };
+  });
+})();
+</script>
 </head>
 <body>
 <header class="top no-print">
@@ -209,7 +234,7 @@ dialog::backdrop{background:rgba(20,40,50,.45)}
 <main id="app"></main>
 <dialog id="dlg"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
-<input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+<input type="file" id="file" accept=".xlsx,.xls,.csv,.json" hidden>
 
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -241,7 +266,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 'use strict';
 /* ============ Utilidades ============ */
 const KEY='theways_recebimentos_v1';
-const APP_VERSION='2026.10.15-1';
+const APP_VERSION='2026.10.15-2';
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const $=(s,r=document)=>r.querySelector(s);
@@ -872,6 +897,14 @@ function parseLegacy(rows,base){
 }
 async function handleFile(file){
   try{
+    if(/\.json$/i.test(file.name)){
+      const j=JSON.parse(await file.text());
+      if(!j||!Array.isArray(j.clientes))throw new Error('formato');
+      const st=Object.assign(blank(),j);st.config=Object.assign(blank().config,j.config||{});st.servicos=st.servicos||[];st.cobrancas=st.cobrancas||[];
+      modal('Restaurar cópia de emergência','<p>Este arquivo traz <b>'+st.clientes.length+' clientes</b>, <b>'+st.servicos.length+' serviços</b> e <b>'+st.cobrancas.length+' cobranças</b>.</p><div class="summary">Os dados atuais do painel serão <b>substituídos</b> por esta cópia.</div>',
+        {ok:'Substituir dados',danger:true,onSubmit(){S=st;V.ym=curYM();V.pym=curYM();V.dym=curYM();commit('Dados restaurados da cópia.')}});
+      return;
+    }
     const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
     const has=n=>wb.SheetNames.some(x=>norm(x)===norm(n));
     if(has('CLIENTES')&&has('COBRANCAS')){
@@ -949,9 +982,11 @@ document.addEventListener('drop',ev=>{const d=ev.target.closest&&ev.target.close
 /* ============ Início ============ */
 window.addEventListener('beforeunload',ev=>{if(S.dirty){ev.preventDefault();ev.returnValue='';return ''}});
 ensureCharges();save();render();
+window.__twOK=true;
 })();
 
 </script>
+<script>window.__twEnd=1;</script>
 <script>
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){r.update()}).catch(function(){})})}
 </script>
