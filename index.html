@@ -240,6 +240,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 'use strict';
 /* ============ Utilidades ============ */
 const KEY='theways_recebimentos_v1';
+const APP_VERSION='2026.10.14-b';
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MESES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const $=(s,r=document)=>r.querySelector(s);
@@ -603,7 +604,8 @@ function viewPlanilha(){
     '<div class="full"><button class="btn primary">Salvar alíquota</button></div></form>'+
     '<div class="tablewrap" style="margin-top:14px"><table style="min-width:0"><thead><tr><th>Vale a partir de</th><th class="right">Alíquota</th><th class="acts"></th></tr></thead><tbody>'+
     dasList().map((e,i,l)=>'<tr><td>'+(e.desde==='2000-01'?'Desde o início':mLabel(e.desde))+'</td><td class="right">'+fmtPct(e.pct)+'%</td><td class="acts">'+(l.length>1?'<button class="btn sm ghost" data-action="removeDas" data-desde="'+e.desde+'">Remover</button>':'')+'</td></tr>').join('')+'</tbody></table></div></section>'+
-  '<section class="panel"><h3>Apagar dados</h3><p class="sub">Remove tudo o que está salvo neste navegador. Exporte a planilha antes.</p><button class="btn danger" data-action="wipe">Apagar todos os dados</button></section>';
+  '<section class="panel"><h3>Apagar dados</h3><p class="sub">Remove tudo o que está salvo neste navegador. Exporte a planilha antes.</p><button class="btn danger" data-action="wipe">Apagar todos os dados</button></section>'+
+  '<section class="panel"><h3>Versão do app</h3><p class="sub">Versão instalada: <b>'+APP_VERSION+'</b>. Se publicou uma versão nova e ela não apareceu, o botão abaixo limpa a cópia guardada do app e recarrega. Seus dados e backups não são apagados.</p><button class="btn secondary" data-action="forceUpdate">Atualizar o app</button></section>';
 }
 
 /* ============ Ações: clientes ============ */
@@ -909,6 +911,13 @@ const actions={
   cancelCharge(el){const c=S.cobrancas.find(x=>x.id===+el.dataset.id);dlg.close();ask('Cancelar cobrança','A cobrança de <b>'+esc(nameOf(c))+'</b> em '+mShort(c.competencia)+' sai dos totais. Você pode restaurá-la depois.','Cancelar cobrança',()=>{c.status='cancelado';commit('Cobrança cancelada.')},true)},
   restore(el){const c=S.cobrancas.find(x=>x.id===+el.dataset.id);c.status='pendente';commit('Cobrança restaurada.')},
   removeDas(el){const l=dasList();if(l.length<2)return;S.config.das=l.filter(e=>e.desde!==el.dataset.desde);S.dirty=true;save();render();toast('Alíquota removida.')},
+  async forceUpdate(){
+    try{
+      if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}
+      if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}
+    }catch(e){}
+    location.reload();
+  },
   wipe(){ask('Apagar todos os dados','Isso remove clientes, serviços e cobranças deste navegador e não pode ser desfeito. Você exportou a planilha antes?','Apagar tudo',()=>{S=blank();V.ym=curYM();V.pym=curYM();save();render();toast('Dados apagados.')},true)}
 };
 document.addEventListener('click',ev=>{const el=ev.target.closest('[data-action]');if(!el)return;const a=actions[el.dataset.action];if(a){ev.preventDefault();a(el)}});
@@ -942,7 +951,7 @@ ensureCharges();save();render();
 
 </script>
 <script>
-if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){r.update()}).catch(function(){})})}
 </script>
 </body>
 </html>
