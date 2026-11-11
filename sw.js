@@ -3,7 +3,7 @@
 // Ao publicar uma versão nova, troque o número abaixo para o navegador instalar o service worker novo.
 // As bibliotecas do Anonimizador (pasta lib/, com a versão no nome do arquivo) são buscadas só quando o menu é aberto,
 // ficam guardadas e passam de uma versão do app para a outra sem baixar de novo.
-const CACHE = 'theways-recebimentos-2026.11.11-2';
+const CACHE = 'theways-recebimentos-2026.11.11-3';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 const isLib = url => new URL(url).pathname.indexOf('/lib/') >= 0;
 self.addEventListener('install', e => {
